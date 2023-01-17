@@ -37,7 +37,7 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
     private Channel<MessageArgs<T>> BuildChannel<T>(string topic, int capacity = DefaultChannelCapacity) where T : class {
         var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
         var pattern = BuildTopicPattern(topic);
-        var convert = GetDeserializer<T>();
+        var convert = serializerOptions.GetDeserializer<T>();
         client.ApplicationMessageReceivedAsync += async (args) => {
             var msg = args.ApplicationMessage;
             if (!pattern.IsMatch(topic)) {
@@ -49,20 +49,6 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             });
         };
         return channel;
-    }
-
-    private Func<byte[], T?> GetDeserializer<T>() where T : class {
-        var token = new TokenOf<T>();
-        switch (token) {
-            case TokenOf<string>:
-                return p => {
-                    return Encoding.UTF8.GetString(p) as T;
-                };
-            case TokenOf<byte[]>:
-                return p => p as T;
-            default:
-                return payload => JsonSerializer.Deserialize<T>(payload, serializerOptions);
-        }
     }
 
     public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class {

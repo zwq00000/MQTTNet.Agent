@@ -50,20 +50,6 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         }
     }
 
-    private Func<byte[], T?> GetDeserializer<T>() where T : class {
-        var token = new TokenOf<T>();
-        switch (token) {
-            case TokenOf<string>:
-                return p => {
-                    return Encoding.UTF8.GetString(p) as T;
-                };
-            case TokenOf<byte[]>:
-                return p => p as T;
-            default:
-                return payload => JsonSerializer.Deserialize<T>(payload, serializerOptions);
-        }
-    }
-
     private Regex BuildTopicPattern(string topic) {
         var pattern = topic
                         .Replace("/", "\\/")
@@ -94,7 +80,7 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
     private Subject<MessageArgs<T>> BuildSubject<T>(string topic) where T : class {
         var pattern = BuildTopicPattern(topic);
         var subject = new Subject<MessageArgs<T>>();
-        var convert = GetDeserializer<T>();
+        var convert = this.serializerOptions.GetDeserializer<T>();
         processMap.Add(pattern, msg => {
             try {
                 subject.OnNext(new MessageArgs<T>() {
