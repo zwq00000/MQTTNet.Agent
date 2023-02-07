@@ -19,10 +19,9 @@ public abstract class SubscriberEntitySetBase<T> : IDisposable where T : class {
         Start(subscribeTopic);
     }
 
-    private void Start(string topic) {
+    private async void Start(string topic) {
         logger.LogInformation("start SubscriberEntitySetBase<{type}>", typeof(T).Name);
-        this.disposeSub = subscriber.GetSubject<T>(topic).Subscribe(OnReceived);
-        subscriber.SubscribeAsync<T>(topic).ConfigureAwait(false);
+        this.disposeSub = await subscriber.SubscribeAsync<T>(topic, OnReceived).ConfigureAwait(false);
     }
 
     public void Dispose() {

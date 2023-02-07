@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet.Client;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -17,9 +16,11 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
     private readonly IMqttClient client;
     private readonly JsonSerializerOptions serializerOptions;
     private readonly ILogger<MqttClientMessageAgent> logger;
+
+    private readonly Queue<Action> completeActions = new Queue<Action>();
     private const int DefaultChannelCapacity = 10;
 
-    public MqttClientMessageAgent(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttClientMessageAgent> logger):base(client,jsonOptions,logger) {
+    public MqttClientMessageAgent(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttClientMessageAgent> logger) : base(client, jsonOptions, logger) {
         this.client = client;
         this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
@@ -48,6 +49,7 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
                 Payload = msg.Payload == null ? null : convert(msg.Payload)
             });
         };
+        completeActions.Enqueue(() => channel.Writer.Complete());
         return channel;
     }
 
@@ -60,6 +62,9 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
 
     public void Dispose() {
         client.Dispose();
+        while (completeActions.Any()) {
+            completeActions.Dequeue()();
+        }
     }
 }
 
