@@ -74,6 +74,12 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         return GetSubject<T>(topic);
     }
 
+    public async Task<IDisposable> SubscribeAsync<T>(string topic, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic).Subscribe(onNext);
+    }
+
     ///<summary>
     /// 构造 消息订阅
     ///</summary>

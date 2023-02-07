@@ -21,6 +21,8 @@ public static class ServiceExtensions {
     /// 增加 <see cref="IMessageAgent"/>,<see cref="IMessageSubscriber"/> 服务
     /// </summary>
     /// <param name="services"></param>
+    /// <param name="optionBuilder">MQTT Connection Options 构建方法</param>
+    /// <param name="lifetime">服务生命周期,默认为<see cref="ServiceLifetime.Transient"/></param>
     /// <returns></returns>
     public static IServiceCollection AddMessageAgent(this IServiceCollection services, Action<MqttConnectionOptions> optionBuilder, ServiceLifetime lifetime = ServiceLifetime.Transient) {
         services.AddMqttClient(optionBuilder, ServiceLifetime.Transient);
@@ -29,6 +31,13 @@ public static class ServiceExtensions {
         return services;
     }
 
+    /// <summary>
+    /// 注册 <see cref="IMqttClient">MQTT 客户端</see>
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="optionBuilder"></param>
+    /// <param name="lifetime"></param>
+    /// <returns></returns>
     public static IServiceCollection AddMqttClient(this IServiceCollection services, Action<MqttConnectionOptions> optionBuilder, ServiceLifetime lifetime = ServiceLifetime.Transient) {
         if (optionBuilder == null) {
             throw new ArgumentNullException(nameof(optionBuilder));

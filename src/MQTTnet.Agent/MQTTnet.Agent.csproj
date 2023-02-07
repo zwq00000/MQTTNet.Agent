@@ -9,14 +9,13 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>zwq00000</Authors>
     <Description>MQTT pub/sub Agent libs</Description>
     <PackageProjectUrl>https://github.com/zwq00000/MQTTNet.Agent</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zwq00000/MQTTNet.Agent.git</RepositoryUrl>
     <PackageTags>MQTT;Agent</PackageTags>
-</PropertyGroup>
-
+  </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
