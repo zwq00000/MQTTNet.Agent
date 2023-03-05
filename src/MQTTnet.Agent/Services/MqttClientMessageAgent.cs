@@ -44,10 +44,15 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             if (!pattern.IsMatch(topic)) {
                 return;
             }
-            await channel.Writer.WriteAsync(new MessageArgs<T>() {
-                Topic = msg.Topic,
-                Payload = msg.Payload == null ? null : convert(msg.Payload)
-            });
+            try {
+                await channel.Writer.WriteAsync(new MessageArgs<T>() {
+                    Topic = msg.Topic,
+                    Payload = msg.Payload == null ? null : convert(msg.Payload)
+                });
+            } catch (Exception ex) {
+                logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
+                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
+            }
         };
         completeActions.Enqueue(() => channel.Writer.Complete());
         return channel;
