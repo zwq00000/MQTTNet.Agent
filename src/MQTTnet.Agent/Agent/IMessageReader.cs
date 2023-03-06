@@ -13,4 +13,12 @@ public interface IMessageReader {
     /// <param name="topic">订阅主题</param>
     /// <param name="cancellationToken"></param>
     Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>
+    /// 多主题订阅
+    /// </summary>
+    /// <typeparam name="T"></typeparam>    
+    /// <param name="topics">相同消息类型的多个订阅主题</param>
+    /// <param name="cancellationToken"></param>
+    Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string[] topics, CancellationToken cancellationToken = default) where T : class;
 }

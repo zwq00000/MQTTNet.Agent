@@ -29,4 +29,37 @@ public class IMessageAgentTests {
         }
         Assert.Equal(10, count);
     }
+
+    [Fact]
+    public async void TestGetChannelAsync() {
+        var agent = factory.GetService<IMessageAgent>();
+        Assert.NotNull(agent);
+        var topics = BuildTestTopics().ToArray();
+        var cancellationSource = new CancellationTokenSource();
+        var channel = await agent.GetChannelAsync<Message<string>>(topics);
+
+        var task1 = Task.Run(async () => {
+            for (int i = 0; i < 10; i++) {
+                foreach (var topic in topics) {
+                    await agent.PublishAsync<Message<string>>(topic, new Message<string>(topic, $"{topic}/{i}"));
+                    await Task.Delay(10);
+                }
+            }
+            cancellationSource.Cancel();
+        });
+        var task2 = Task.Run(async () => {
+            while (!cancellationSource.Token.IsCancellationRequested) {
+                var msg = await channel.ReadAsync(cancellationSource.Token);
+                output.WriteJson(msg);
+            }
+        });
+        Task.WaitAll(task1, task2);
+        await Task.Delay(1000);
+    }
+
+    private IEnumerable<string> BuildTestTopics(string perfix = "test", int count = 10) {
+        for (var i = 0; i < count; i++) {
+            yield return $"{perfix}/{i}";
+        }
+    }
 }
