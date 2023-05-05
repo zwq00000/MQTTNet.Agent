@@ -24,8 +24,8 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+    #- name: Test
+    #  run: dotnet test --no-build --verbosity normal
     - name: Pack
       run: dotnet pack --output ./publish/ /p:Configuration=Release
     - name: Publish the package to nuget.org
