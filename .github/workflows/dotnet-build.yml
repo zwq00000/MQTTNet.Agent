@@ -1,19 +1,17 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
 
-name: .NET
 
+name: .NET Build
 on:
   push:
-    branches: [ "develop" ]
-  pull_request:
     branches: [ "develop" ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET
@@ -23,11 +21,14 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore --version-suffix build-${{env.GITHUB_RUN_ID	}}
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
     - name: Pack
-      run: dotnet pack --version-suffix build-${{env.GITHUB_RUN_ID	}} --output ./publish/ /p:Configuration=Release
+      run: dotnet pack ---version-suffix build-${{env.GITHUB_RUN_ID	}} --output ./publish/ /p:Configuration=Release
     - name: Publish the package to nuget.org
       run: dotnet nuget push ./publish/*.nupkg --skip-duplicate -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
       env: 
         NUGET_AUTH_TOKEN: ${{ secrets.NUGET_APIKEY }}
   
+

@@ -9,7 +9,11 @@
   </PropertyGroup>
 
   <PropertyGroup>
+<<<<<<< HEAD
     <Version>1.0.1</Version>
+=======
+    <Version>1.0.3-$(VersionSuffix)</Version>
+>>>>>>> 89245f8a09778fb79a204fc312291e74c107ccc5
     <Authors>zwq00000</Authors>
     <Description>MQTT pub/sub Agent libs</Description>
     <PackageProjectUrl>https://github.com/zwq00000/MQTTNet.Agent</PackageProjectUrl>
