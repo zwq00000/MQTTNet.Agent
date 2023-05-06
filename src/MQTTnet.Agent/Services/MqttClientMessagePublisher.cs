@@ -38,7 +38,7 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
             throw new ArgumentNullException(nameof(topic));
         }
 
-        var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), serializerOptions);
+        var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), options??serializerOptions);
         var msg = new MqttApplicationMessageBuilder()
                     .WithTopic(topic)
                     .WithPayload(bytes)

@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MQTTnet.Agent.Tests;
 
@@ -9,6 +13,20 @@ public class IMessagePublisherTests {
     public IMessagePublisherTests(ITestOutputHelper outputHelper) {
         this.output = outputHelper;
         this.factory = new TestFactory();
+    }
+
+    [Fact]
+    public void TestJsonSerialize(){
+        var f = new TestFactory(s=>{
+            s.AddMqttClient(opt=>opt.ConnectionUri = new Uri("mqtt://192.168.1.15:1883"));
+            s.AddOptions<JsonOptions>().Configure(o=>{
+                o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                o.SerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+                o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
+        });
+        var publisher = f.GetService<IMessagePublisher>();
+        Assert.NotNull(publisher);
     }
 
     [Fact]
