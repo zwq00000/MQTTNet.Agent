@@ -5,9 +5,9 @@ name: .NET
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "develop" ]
 
 jobs:
   build:
@@ -23,11 +23,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet build --no-restore --version-suffix build-${{env.GITHUB_RUN_ID	}}
     - name: Pack
-      run: dotnet pack --output ./publish/ /p:Configuration=Release
+      run: dotnet pack --version-suffix build-${{env.GITHUB_RUN_ID	}} --output ./publish/ /p:Configuration=Release
     - name: Publish the package to nuget.org
       run: dotnet nuget push ./publish/*.nupkg --skip-duplicate -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
       env: 
