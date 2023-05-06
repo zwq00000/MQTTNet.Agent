@@ -1,3 +1,4 @@
+#if Subscriber
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -61,3 +62,4 @@ public abstract class SubscriberEntitySetBase<T> : IDisposable where T : class {
         logger.LogTrace("SubscriberEntitySetBase<{type}> Received {topic}", typeof(T).Name, msg.Topic);
     }
 }
+#endif

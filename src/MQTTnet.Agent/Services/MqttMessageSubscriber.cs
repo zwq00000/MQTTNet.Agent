@@ -35,7 +35,12 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         var msg = args.ApplicationMessage;
         foreach (var kv in processMap) {
             if (kv.Key.IsMatch(msg.Topic)) {
-                return kv.Value(msg);
+                try {
+                    return kv.Value(msg);
+                } catch (Exception ex) {
+                    logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
+                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
+                }
             }
         }
         return Task.CompletedTask;
