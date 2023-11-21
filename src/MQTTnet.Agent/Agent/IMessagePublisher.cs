@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace MQTTnet.Agent;
@@ -11,11 +12,12 @@ public interface IMessagePublisher {
     /// <param name="topic">发布主题</param>
     /// <param name="payload">载荷对象</param>
     /// <param name="retain">消息保留标志,默认为 <see langword="false"/></param>
+    /// <param name="qos">quality of service level</param>
     /// <param name="options"></param>
     /// <param name="cancellationToken"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    Task PublishAsync<T>(string topic, T? payload, JsonSerializerOptions? options = null, bool retain = false, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
+    Task PublishAsync<T>(string topic, T? payload, JsonSerializerOptions? options = null, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
 
     /// <summary>
     /// 发布文本消息
@@ -23,7 +25,8 @@ public interface IMessagePublisher {
     /// <param name="topic">发布主题</param>
     /// <param name="payload">载荷内容</param>
     /// <param name="retain">消息保留标志,默认为 <see langword="false"/></param>
+    /// <param name="qos">quality of service level</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task PublishStringAsync(string topic, string payload, bool retain = false, CancellationToken cancellationToken = default(CancellationToken));
+    Task PublishStringAsync(string topic, string payload, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken));
 }
