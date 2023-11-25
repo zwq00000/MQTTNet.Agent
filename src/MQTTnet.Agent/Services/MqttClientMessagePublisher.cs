@@ -33,9 +33,14 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
         await this.client.ConnectAsync(this.client.Options, cancellationToken);
     }
 
-    public async Task PublishAsync<T>(string topic, T? payload, JsonSerializerOptions? options = null, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default) where T : class {
+    public async Task PublishAsync<T>(string topic, T? payload, JsonSerializerOptions? options = null, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) where T : class {
         if (string.IsNullOrWhiteSpace(topic)) {
             throw new ArgumentNullException(nameof(topic));
+        }
+
+        if (payload is string payloadStr) {
+            await PublishStringAsync(topic, payloadStr, retain, qos, cancellationToken);
+            return;
         }
 
         var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), options ?? serializerOptions);
@@ -44,7 +49,7 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
                     .WithPayload(bytes)
                     .WithRetainFlag(retain)
                     .WithQualityOfServiceLevel((Protocol.MqttQualityOfServiceLevel)qos)
-                    .WithContentType("application/json")
+                    // .WithContentType("application/json")
                     .Build();
         await CheckConnected(cancellationToken);
         var result = await this.client.PublishAsync(msg, cancellationToken);
@@ -53,7 +58,7 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
         }
     }
 
-    public async Task PublishStringAsync(string topic, string payload, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default) {
+    public async Task PublishStringAsync(string topic, string payload, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(topic)) {
             throw new ArgumentNullException(nameof(topic));
         }

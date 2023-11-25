@@ -23,7 +23,7 @@ public class IMessageHubTests {
         for (var i = 0; i < 10; i++) {
             await agent.PublishAsync<string>("topic", i.ToString());
         }
-        await Task.Delay(100);
+        await Task.Delay(10);
         agent.Dispose();
 
         Assert.Equal(10, count);

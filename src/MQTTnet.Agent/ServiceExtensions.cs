@@ -52,10 +52,7 @@ public static class ServiceExtensions {
             var options = s.GetRequiredService<IOptions<MqttConnectionOptions>>();
             var clientOptions = options.Value.BuildClientOptions();
             var logger = s.GetRequiredService<ILogger<AutoReConnectedClient>>();
-            // var client = factory.CreateMqttClient(logger);
-            // client.ConnectAsync(clientOptions).Wait();
             return new  AutoReConnectedClient(clientOptions,logger);
-            // return client;
         }, lifetime));
 
         return services;
@@ -68,6 +65,7 @@ public static class ServiceExtensions {
         private readonly ISet<string> topics = new HashSet<string>();
 
         public AutoReConnectedClient(MqttClientOptions options, ILogger<AutoReConnectedClient> logger) {
+            // options.ValidateFeatures = false;
             this.innerClient = new MqttFactory().CreateMqttClient(new InternalMqttNetLogger(logger));
             this.logger = logger;
             innerClient.ConnectAsync(options).Wait();

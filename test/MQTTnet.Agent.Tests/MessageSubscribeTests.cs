@@ -3,12 +3,15 @@ using System.Diagnostics;
 
 namespace MQTTnet.Agent.Tests;
 
-public class MessageSubscribeTests {
+/// <summary>
+/// 测试 自动重新连接 MQTT 客户端
+/// </summary>
+public class TestAutoReconnectionClient {
     private readonly ITestOutputHelper output;
     private readonly TestFactory factory;
 
 
-    public MessageSubscribeTests(ITestOutputHelper outputHelper) {
+    public TestAutoReconnectionClient(ITestOutputHelper outputHelper) {
         this.output = outputHelper;
         this.factory = new TestFactory(s => s.AddMqttClient(opt => opt.ConnectionUri = new Uri("mqtt://localhost:1883")));
     }
