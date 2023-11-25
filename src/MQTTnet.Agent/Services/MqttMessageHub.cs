@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet;
 using MQTTnet.Client;
 using System.Reactive.Subjects;
 using System.Text;
@@ -27,8 +26,17 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
 
-        client.DisconnectedAsync += OnDisconnected;
+        // client.ConnectedAsync += OnConnected;
+        // client.DisconnectedAsync += OnDisconnected;
         client.ApplicationMessageReceivedAsync += OnMessageReceived;
+    }
+
+    private async Task OnConnected(MqttClientConnectedEventArgs args) {
+        //恢复 subjectMap
+        foreach (var topic in subjectMap.Keys) {
+            logger.LogInformation("恢复订阅 {topic}", topic);
+            await client.SubscribeAsync(topic);
+        }
     }
 
     private Task OnMessageReceived(MqttApplicationMessageReceivedEventArgs args) {
@@ -39,7 +47,7 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
                     return kv.Value(msg);
                 } catch (Exception ex) {
                     logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
+                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
                 }
             }
         }
@@ -48,8 +56,9 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
 
     private async Task OnDisconnected(MqttClientDisconnectedEventArgs arg) {
         if (!_isDisposed) {
-            logger.LogWarning("mqtt client {clientId} 断开连接,{reason}", client.Options.ClientId, arg.ReasonString);
+            logger.LogWarning("mqtt client {clientId} 断开连接", client.Options.ClientId);
             //重新连接
+            logger.LogInformation("5秒后尝试重新连接 MQTT Server");
             await Task.Delay(TimeSpan.FromSeconds(5));
             await this.client.ConnectAsync(client.Options);
         }
@@ -96,11 +105,11 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             try {
                 subject.OnNext(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.Payload == null ? null : convert(msg.Payload)
+                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
                 });
             } catch (JsonException ex) {
                 logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
-                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.Payload));
+                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.PayloadSegment));
             }
             return Task.CompletedTask;
         });

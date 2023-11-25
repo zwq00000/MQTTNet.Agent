@@ -16,6 +16,22 @@ public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
 
     public bool ClearSession { get; set; } = true;
 
+
+     public MqttClientOptions BuildClientOptions() {
+        if (ConnectionUri == null) {
+            throw new ArgumentNullException(nameof(ConnectionUri));
+        }
+        var builder = new MqttClientOptionsBuilder().WithConnectionUri(ConnectionUri);
+
+        if (!string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Password)) {
+            builder.WithCredentials(UserName, Password);
+        }
+        if (ClearSession) {
+            builder.WithCleanSession();
+        }
+        return builder.Build();
+    }
+
     public MqttClientOptions Build(MqttClientOptionsBuilder builder) {
         if (ConnectionUri == null) {
             throw new ArgumentNullException(nameof(ConnectionUri));

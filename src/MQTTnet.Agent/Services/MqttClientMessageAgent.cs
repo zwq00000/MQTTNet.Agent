@@ -51,11 +51,11 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             try {
                 await channel.Writer.WriteAsync(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.Payload == null ? null : convert(msg.Payload)
+                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
                 });
             } catch (Exception ex) {
                 logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
+                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
             }
         };
         completeActions.Enqueue(() => channel.Writer.Complete());
