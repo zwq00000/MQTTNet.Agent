@@ -1,13 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet.Client;
 using MQTTnet.Diagnostics;
 
 namespace MQTTnet.Agent;
 
-public static class ServiceExtensions {
+public static partial class ServiceExtensions {
 
-    public static IServiceCollection AddMessageAgent(this IServiceCollection services,ServiceLifetime lifetime = ServiceLifetime.Transient) {
+    public static IServiceCollection AddMessageAgent(this IServiceCollection services, ServiceLifetime lifetime = ServiceLifetime.Transient) {
         services.Add(new ServiceDescriptor(typeof(IMessagePublisher), typeof(MqttClientMessagePublisher), lifetime));
         services.Add(new ServiceDescriptor(typeof(IMessageSubscriber), typeof(MqttMessageHub), lifetime));
         services.Add(new ServiceDescriptor(typeof(IMessageHub), typeof(MqttMessageHub), lifetime));
@@ -49,11 +50,9 @@ public static class ServiceExtensions {
         //注册 默认 IMqttClient,已经连接
         services.Add(new ServiceDescriptor(typeof(IMqttClient), s => {
             var options = s.GetRequiredService<IOptions<MqttConnectionOptions>>();
-            var connect = options.Value.Build(new MqttClientOptionsBuilder());
-            var logger = s.GetService<IMqttNetLogger>();
-            var client = factory.CreateMqttClient(logger);
-            client.ConnectAsync(connect).Wait();
-            return client;
+            var clientOptions = options.Value.BuildClientOptions();
+            var logger = s.GetRequiredService<ILogger<AutoReConnectedClient>>();
+            return new  AutoReConnectedClient(clientOptions,logger);
         }, lifetime));
 
         return services;

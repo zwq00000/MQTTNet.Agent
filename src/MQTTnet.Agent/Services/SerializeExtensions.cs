@@ -14,16 +14,15 @@ internal static class SerializeExtensions {
 
     internal static Func<byte[], T?> GetDeserializer<T>(this JsonSerializerOptions serializerOptions) where T : class {
         var token = new TokenOf<T>();
-        switch (token) {
-            case TokenOf<string>:
-                return p => {
-                    return Encoding.UTF8.GetString(p) as T;
-                };
-            case TokenOf<byte[]>:
-                return p => p as T;
-            default:
-                return payload => JsonSerializer.Deserialize<T>(payload, serializerOptions);
-        }
+        return token switch {
+            TokenOf<string> => p => {
+                return Encoding.UTF8.GetString(p) as T;
+            }
+
+            ,
+            TokenOf<byte[]> => p => p as T,
+            _ => payload => JsonSerializer.Deserialize<T>(payload, serializerOptions),
+        };
     }
 
 }

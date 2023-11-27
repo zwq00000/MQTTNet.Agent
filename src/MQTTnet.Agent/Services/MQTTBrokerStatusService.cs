@@ -7,7 +7,7 @@ namespace MQTTnet.Agent;
 /// </summary>
 internal class MQTTBrokerStatusService : IDisposable {
     private readonly IMessageSubscriber subscriber;
-    private ILogger<MQTTBrokerStatusService> logger;
+    private readonly ILogger<MQTTBrokerStatusService> logger;
 
     public MQTTBrokerStatusService(IMessageSubscriber subscriber, ILogger<MQTTBrokerStatusService> logger) {
         this.subscriber = subscriber;

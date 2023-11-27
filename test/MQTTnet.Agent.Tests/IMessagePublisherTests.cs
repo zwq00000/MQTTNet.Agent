@@ -18,7 +18,7 @@ public class IMessagePublisherTests {
     [Fact]
     public void TestJsonSerialize(){
         var f = new TestFactory(s=>{
-            s.AddMqttClient(opt=>opt.ConnectionUri = new Uri("mqtt://192.168.1.15:1883"));
+            s.AddMqttClient(opt=>opt.ConnectionUri = new Uri("mqtt://localhost:1883"));
             s.AddOptions<JsonOptions>().Configure(o=>{
                 o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                 o.SerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
