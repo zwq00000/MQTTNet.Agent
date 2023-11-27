@@ -6,12 +6,12 @@ namespace MQTTnet.Agent.Tests;
 /// <summary>
 /// 测试 自动重新连接 MQTT 客户端
 /// </summary>
-public class MessageSubscribeTests {
+public class MqttBrokerRestartTests {
     private readonly ITestOutputHelper output;
     private readonly TestFactory factory;
 
 
-    public MessageSubscribeTests(ITestOutputHelper outputHelper) {
+    public MqttBrokerRestartTests(ITestOutputHelper outputHelper) {
         this.output = outputHelper;
         this.factory = new TestFactory(s => s.AddMqttClient(opt => opt.ConnectionUri = new Uri("mqtt://localhost:1883")));
     }
