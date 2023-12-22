@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Runtime.CompilerServices;
 
 namespace MQTTnet.Agent.Tests;
 
@@ -15,7 +16,7 @@ public class TestFactory {
 
     public TestFactory(Action<IServiceCollection> serviceBuilder) {
         var services = new ServiceCollection();
-        services.AddLogging(e=>e.AddSimpleConsole());
+        services.AddLogging(e => e.AddSimpleConsole());
         services.AddMessageAgent();
         serviceBuilder?.Invoke(services);
         var Services = services.BuildServiceProvider();
@@ -24,7 +25,11 @@ public class TestFactory {
 
     public IServiceProvider Services => Scope.ServiceProvider;
 
-    public TService GetService<TService>() where TService : notnull{
+    public TService GetService<TService>() where TService : notnull {
         return Services.GetRequiredService<TService>();
+    }
+
+    public static string GetTestTopic([CallerMemberName] string caller = "") {
+        return $"test/{nameof(caller)}/{DateTime.Now.Ticks}";
     }
 }
