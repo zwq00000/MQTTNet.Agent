@@ -17,6 +17,13 @@ internal class InternalMqttNetLogger : IMqttNetLogger {
         this.logger = logger;
     }
 
+    internal InternalMqttNetLogger(ILogger logger) {
+        if (logger == null) {
+            throw new ArgumentNullException(nameof(logger));
+        }
+        this.logger = logger;
+    }
+
     public bool IsEnabled => this.logger != null;
 
     public void Publish(MqttNetLogLevel logLevel, string source, string message, object[] parameters, Exception exception) {

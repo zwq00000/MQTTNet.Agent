@@ -88,3 +88,10 @@ public interface IMessageHub : IMessageSubscriber, IMessagePublisher {
 
 }
 ```
+
+
+
+# ChangeLog
+
+## v1.0.4
+- 消息发布增加 QOS 支持
