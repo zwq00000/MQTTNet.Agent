@@ -12,16 +12,17 @@ public class IMessageHubTests {
 
     [Fact]
     public async void TestDispose() {
+        var topic = TestFactory.GetTestTopic();
         var agent = factory.GetService<IMessageHub>();
         Assert.NotNull(agent);
-        var subs = await agent.SubscribeAsync<string>("topic");
+        var subs = await agent.SubscribeAsync<string>(topic);
         int count = 0;
         subs.Subscribe(s => {
             output.WriteLine(s.Payload);
             count++;
         });
         for (var i = 0; i < 10; i++) {
-            await agent.PublishAsync<string>("topic", i.ToString());
+            await agent.PublishAsync<string>(topic, i.ToString());
         }
         await Task.Delay(10);
         agent.Dispose();
@@ -30,18 +31,18 @@ public class IMessageHubTests {
     }
     [Fact]
     public async void TestSubscribe() {
+        var topic = TestFactory.GetTestTopic();
         var agent = factory.GetService<IMessageHub>();
         Assert.NotNull(agent);
         int count = 0;
-        using var subs = await agent.SubscribeAsync<string>("topic", s => {
+        using var subs = await agent.SubscribeAsync<string>(topic, s => {
             output.WriteLine(s.Payload);
             count++;
         });
         for (var i = 0; i < 10; i++) {
-            await agent.PublishAsync<string>("topic", i.ToString());
+            await agent.PublishAsync<string>(topic, i.ToString());
         }
         await Task.Delay(100);
         Assert.Equal(10, count);
     }
-
 }

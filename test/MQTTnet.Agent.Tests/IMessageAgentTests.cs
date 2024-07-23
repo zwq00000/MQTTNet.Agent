@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace MQTTnet.Agent.Tests;
 
 public class IMessageAgentTests {
@@ -12,16 +14,18 @@ public class IMessageAgentTests {
 
     [Fact]
     public async void TestDispose() {
+        var topic = TestFactory.GetTestTopic();
         var agent = factory.GetService<IMessageAgent>();
         Assert.NotNull(agent);
         var task = Task.Factory.StartNew(async () => {
+            await Task.Delay(100);
             for (var i = 0; i < 10; i++) {
-                await agent.PublishAsync<string>("topic", i.ToString());
+                await agent.PublishAsync<string>(topic, i.ToString());
             }
             await Task.Delay(1000);
             agent.Dispose();
         });
-        var reader = await agent.GetChannelAsync<string>("topic");
+        var reader = await agent.GetChannelAsync<string>(topic);
         int count = 0;
         await foreach (var item in reader.ReadAllAsync()) {
             output.WriteLine(item.Payload);
@@ -39,6 +43,7 @@ public class IMessageAgentTests {
         var channel = await agent.GetChannelAsync<Message<string>>(topics);
 
         var task1 = Task.Run(async () => {
+            await Task.Delay(100);
             for (int i = 0; i < 10; i++) {
                 foreach (var topic in topics) {
                     await agent.PublishAsync<Message<string>>(topic, new Message<string>(topic, $"{topic}/{i}"));
@@ -53,13 +58,15 @@ public class IMessageAgentTests {
                 output.WriteJson(msg);
             }
         });
-        Task.WaitAll(task1, task2);
-        await Task.Delay(1000);
+        Assert.Throws<TaskCanceledException>(() => {
+            Task.WaitAll(task1, task2);
+        });
+        // await Task.Delay(1000);
     }
 
-    private IEnumerable<string> BuildTestTopics(string perfix = "test", int count = 10) {
+    private IEnumerable<string> BuildTestTopics(string perfix = "test", int count = 10, [CallerMemberName] string caller = "") {
         for (var i = 0; i < count; i++) {
-            yield return $"{perfix}/{i}";
+            yield return $"{perfix}/{caller}/{i}";
         }
     }
 }
