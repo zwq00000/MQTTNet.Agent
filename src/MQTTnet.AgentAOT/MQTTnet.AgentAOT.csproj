@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot> 
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>1.0.5</Version>
+    <Authors>zwq00000</Authors>
+    <Description>MQTT pub/sub Agent libs</Description>
+    <PackageProjectUrl>https://github.com/zwq00000/MQTTNet.Agent</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zwq00000/MQTTNet.Agent.git</RepositoryUrl>
+    <PackageTags>MQTT;Agent;AOT</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MQTTnet" Version="4.3.*" />
+    <PackageReference Include="System.Reactive" Version="6.0.*" />
+  </ItemGroup>
+</Project>
