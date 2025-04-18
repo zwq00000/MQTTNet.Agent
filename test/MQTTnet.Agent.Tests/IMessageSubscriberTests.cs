@@ -14,15 +14,14 @@ public class IMessageSubscriberTests {
         var subs = factory.GetService<IMessageSubscriber>();
         Assert.NotNull(subs);
         var expected = 0;
-        await subs.SubscribeAsync<TestData>("test", msg => {
+        var obs = await subs.SubscribeAsync<TestData>("test", TestJsonSerializerContext.Default.TestData);
+        obs.Subscribe(msg => {
             Assert.NotNull(msg.Payload);
             output.WriteJson(msg.Payload);
             expected++;
-        }, TestJsonSerializerContext.Default.TestData);
+        });
         var count = 10;
         await factory.PublishTestDataAsync("test", count);
-
-        await Task.Delay(TimeSpan.FromSeconds(1));
         Assert.Equal(count, expected);
     }
 }
