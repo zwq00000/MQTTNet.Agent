@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 
 namespace MQTTnet.Agent;
@@ -25,18 +26,7 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         this.client = client;
         this.serializerOptions = jsonOptions?.Value.SerializerOptions;
         this.logger = logger;
-
-        // client.ConnectedAsync += OnConnected;
-        // client.DisconnectedAsync += OnDisconnected;
         client.ApplicationMessageReceivedAsync += OnMessageReceived;
-    }
-
-    private async Task OnConnected(MqttClientConnectedEventArgs args) {
-        //恢复 subjectMap
-        foreach (var topic in subjectMap.Keys) {
-            logger.LogInformation("恢复订阅 {topic}", topic);
-            await client.SubscribeAsync(topic);
-        }
     }
 
     private Task OnMessageReceived(MqttApplicationMessageReceivedEventArgs args) {
@@ -54,16 +44,6 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         return Task.CompletedTask;
     }
 
-    private async Task OnDisconnected(MqttClientDisconnectedEventArgs arg) {
-        if (!_isDisposed) {
-            logger.LogWarning("mqtt client {clientId} 断开连接", client.Options.ClientId);
-            //重新连接
-            logger.LogInformation("5秒后尝试重新连接 MQTT Server");
-            await Task.Delay(TimeSpan.FromSeconds(5));
-            await this.client.ConnectAsync(client.Options);
-        }
-    }
-
     private Regex BuildTopicPattern(string topic) {
         var pattern = topic
                         .Replace("/", "\\/")
@@ -73,22 +53,22 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         return new Regex(pattern, RegexOptions.Compiled);
     }
 
-    public IObservable<MessageArgs<T>> GetSubject<T>(string topic) where T : class {
+    public IObservable<MessageArgs<T>> GetSubject<T>(string topic, JsonTypeInfo<T>? typeInfo = null) where T : class {
         if (this.subjectMap.TryGetValue(topic, out var disposable)) {
             return (IObservable<MessageArgs<T>>)disposable;
         }
-        var subject = BuildSubject<T>(topic);
+        var subject = BuildSubject<T>(topic, typeInfo);
         subjectMap.Add(topic, subject);
         return subject;
     }
 
-    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class {
+    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, JsonTypeInfo<T>? typeInfo = null, CancellationToken cancellationToken = default) where T : class {
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
         return GetSubject<T>(topic);
     }
 
-    public async Task<IDisposable> SubscribeAsync<T>(string topic, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
+    public async Task<IDisposable> SubscribeAsync<T>(string topic, Action<MessageArgs<T>> onNext, JsonTypeInfo<T>? typeInfo = null, CancellationToken cancellationToken = default) where T : class {
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
         return GetSubject<T>(topic).Subscribe(onNext);
@@ -97,10 +77,10 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
     ///<summary>
     /// 构造 消息订阅
     ///</summary>
-    private Subject<MessageArgs<T>> BuildSubject<T>(string topic) where T : class {
+    private Subject<MessageArgs<T>> BuildSubject<T>(string topic, JsonTypeInfo<T>? typeInfo = null) where T : class {
         var pattern = BuildTopicPattern(topic);
         var subject = new Subject<MessageArgs<T>>();
-        var convert = this.serializerOptions.GetDeserializer<T>();
+        var convert = typeInfo != null ? typeInfo.GetDeserializer<T>() : this.serializerOptions.GetDeserializer<T>();
         processMap.Add(pattern, msg => {
             try {
                 subject.OnNext(new MessageArgs<T>() {
@@ -121,7 +101,6 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             return;
         }
         this._isDisposed = true;
-        client.DisconnectedAsync -= OnDisconnected;
         client.ApplicationMessageReceivedAsync -= OnMessageReceived;
         client.Dispose();
         foreach (var item in subjectMap.Values) {

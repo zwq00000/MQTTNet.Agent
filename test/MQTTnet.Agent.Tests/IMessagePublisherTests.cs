@@ -63,7 +63,7 @@ public class IMessagePublisherTests {
     private async Task<MessageArgs<T>> ReciveAsync<T>(string topic, CancellationToken cancellationToken) where T : class {
         var agent = factory.GetService<IMessageAgent>();
         Assert.NotNull(agent);
-        var channel = await agent.GetChannelAsync<T>(topic, cancellationToken);
+        var channel = await agent.GetChannelAsync<T>(topic);
         return await channel.ReadAsync(cancellationToken);
     }
 }

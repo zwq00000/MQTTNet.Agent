@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Buffers;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 
@@ -16,7 +17,6 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
     private readonly IMqttClient client;
     private readonly JsonSerializerOptions? serializerOptions;
     private readonly ILogger<MqttClientMessageAgent> logger;
-
     private readonly Queue<Action> completeActions = new Queue<Action>();
     private const int DefaultChannelCapacity = 10;
 
@@ -35,14 +35,14 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
         return new Regex(pattern, RegexOptions.Compiled);
     }
 
-    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, int capacity = DefaultChannelCapacity) where T : class {
+    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, JsonTypeInfo<T>? typeInfo = null, int capacity = DefaultChannelCapacity) where T : class {
         var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
-        return BuildChannel<T>(topic, channel, capacity);
+        return BuildChannel<T>(topic, channel, typeInfo, capacity);
     }
 
-    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, Channel<MessageArgs<T>> channel, int capacity = DefaultChannelCapacity) where T : class {
+    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, Channel<MessageArgs<T>> channel, JsonTypeInfo<T>? typeInfo = null, int capacity = DefaultChannelCapacity) where T : class {
         var pattern = BuildTopicPattern(topic);
-        var convert = serializerOptions.GetDeserializer<T>();
+        var convert = typeInfo != null ? typeInfo.GetDeserializer<T>() : serializerOptions.GetDeserializer<T>();
         client.ApplicationMessageReceivedAsync += async (args) => {
             var msg = args.ApplicationMessage;
             if (!pattern.IsMatch(topic)) {
@@ -62,17 +62,17 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
         return channel;
     }
 
-    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class {
+    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, JsonTypeInfo<T>? typeInfo = null, CancellationToken cancellationToken = default) where T : class {
         var channel = BuildChannel<T>(topic);
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
         return channel.Reader;
     }
 
-    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string[] topics, CancellationToken cancellationToken = default) where T : class {
+    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string[] topics, JsonTypeInfo<T>? typeInfo = null, CancellationToken cancellationToken = default) where T : class {
         var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
         foreach (var topic in topics) {
-            BuildChannel<T>(topic, channel);
+            BuildChannel<T>(topic, channel, typeInfo);
             var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
             logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
         }
