@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
+using System.Buffers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -14,15 +14,15 @@ namespace MQTTnet.Agent;
 /// </summary>
 internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgent {
     private readonly IMqttClient client;
-    private readonly JsonSerializerOptions serializerOptions;
+    private readonly JsonSerializerOptions? serializerOptions;
     private readonly ILogger<MqttClientMessageAgent> logger;
 
     private readonly Queue<Action> completeActions = new Queue<Action>();
     private const int DefaultChannelCapacity = 10;
 
-    public MqttClientMessageAgent(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttClientMessageAgent> logger) : base(client, jsonOptions, logger) {
+    public MqttClientMessageAgent(IMqttClient client, IOptions<JsonOptions>? jsonOptions, ILogger<MqttClientMessageAgent> logger) : base(client, jsonOptions, logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
+        this.serializerOptions = jsonOptions?.Value.SerializerOptions;
         this.logger = logger;
     }
 
@@ -51,11 +51,11 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             try {
                 await channel.Writer.WriteAsync(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
+                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload.ToArray())
                 });
             } catch (Exception ex) {
                 logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
+                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
             }
         };
         completeActions.Enqueue(() => channel.Writer.Complete());

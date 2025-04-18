@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
+using System.Buffers;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
@@ -14,16 +14,16 @@ namespace MQTTnet.Agent;
 /// </summary>
 internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
     private readonly IMqttClient client;
-    private readonly JsonSerializerOptions serializerOptions;
+    private readonly JsonSerializerOptions? serializerOptions;
     private readonly ILogger<MqttMessageHub> logger;
     private readonly IDictionary<string, IDisposable> subjectMap = new Dictionary<string, IDisposable>();
 
     private readonly IDictionary<Regex, Func<MqttApplicationMessage, Task>> processMap = new Dictionary<Regex, Func<MqttApplicationMessage, Task>>();
     private bool _isDisposed = false;
 
-    public MqttMessageHub(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttMessageHub> logger) : base(client, jsonOptions, logger) {
+    public MqttMessageHub(IMqttClient client, IOptions<JsonOptions>? jsonOptions, ILogger<MqttMessageHub> logger) : base(client, jsonOptions, logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
+        this.serializerOptions = jsonOptions?.Value.SerializerOptions;
         this.logger = logger;
 
         // client.ConnectedAsync += OnConnected;
@@ -47,7 +47,7 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
                     return kv.Value(msg);
                 } catch (Exception ex) {
                     logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
+                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
                 }
             }
         }
@@ -105,11 +105,11 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             try {
                 subject.OnNext(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
+                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload.ToArray())
                 });
             } catch (JsonException ex) {
                 logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
-                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.PayloadSegment));
+                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.Payload));
             }
             return Task.CompletedTask;
         });

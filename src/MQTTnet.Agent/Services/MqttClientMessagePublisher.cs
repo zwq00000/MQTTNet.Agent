@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -10,12 +9,12 @@ namespace MQTTnet.Agent;
 
 internal class MqttClientMessagePublisher : IMessagePublisher {
     private readonly IMqttClient client;
-    private readonly JsonSerializerOptions serializerOptions;
+    private readonly JsonSerializerOptions? serializerOptions;
     private readonly ILogger logger;
 
-    public MqttClientMessagePublisher(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttClientMessagePublisher> logger) {
+    public MqttClientMessagePublisher(IMqttClient client, IOptions<JsonOptions>? jsonOptions, ILogger<MqttClientMessagePublisher> logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
+        this.serializerOptions = jsonOptions?.Value.SerializerOptions;
         this.logger = logger;
     }
 

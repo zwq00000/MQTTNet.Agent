@@ -6,11 +6,15 @@ namespace MQTTnet.Agent.Tests;
 
 public class TestFactory {
     public IServiceScope Scope { get; private set; }
-    private static Uri MqttUri = new Uri("mqtt://localhost:1883");
 
-    private static void UseMqttClient(IServiceCollection s) {
-        s.AddMqttClient(opt => opt.ConnectionUri = MqttUri);
+    public static void UseMqttClient(IServiceCollection s) {
+        s.AddMqttClient(opt => opt.ConnectionUri = new Uri("mqtt://localhost:1883"));
     }
+
+    internal static void UseWebSocket(IServiceCollection s) {
+        s.AddMqttClient(opt => opt.ConnectionUri = new Uri("ws://localhost:8083"));
+    }
+    
 
     public TestFactory() : this(UseMqttClient) { }
 
