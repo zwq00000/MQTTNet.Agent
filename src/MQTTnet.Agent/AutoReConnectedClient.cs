@@ -71,6 +71,8 @@ internal class AutoReConnectedClient : IMqttClient {
     }
 
     public void Dispose() {
+        innerClient.ConnectedAsync -= OnConnected;
+        innerClient.DisconnectedAsync -= OnDisconnected;
         innerClient.Dispose();
         topics.Clear();
     }

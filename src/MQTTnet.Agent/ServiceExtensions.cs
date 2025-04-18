@@ -129,9 +129,7 @@ public static partial class ServiceExtensions {
     /// <param name="lifetime"></param>
     /// <returns></returns>
     public static IServiceCollection AddKeyedMqttClient(this IServiceCollection services, string serviceKey, Action<MqttConnectionOptions> optionBuilder, ServiceLifetime lifetime = ServiceLifetime.Transient) {
-        if (optionBuilder == null) {
-            throw new ArgumentNullException(nameof(optionBuilder));
-        }
+        ArgumentNullException.ThrowIfNull(optionBuilder);
 
         services.AddOptions<MqttConnectionOptions>(serviceKey).Configure(optionBuilder);
 
