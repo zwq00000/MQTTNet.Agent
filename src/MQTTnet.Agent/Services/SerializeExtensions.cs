@@ -5,6 +5,11 @@ using System.Text.Json;
 namespace MQTTnet.Agent;
 
 internal static class SerializeExtensions {
+    /// <summary>
+    /// 默认的序列化选项
+    /// </summary>
+    private readonly static JsonSerializerOptions DefaultSerializerOptions = new(JsonSerializerDefaults.Web);
+
     public static byte[] Serialize<T>(T? payload, JsonSerializerOptions? options = null) {
         return payload switch {
             null => Array.Empty<byte>(),
@@ -14,12 +19,12 @@ internal static class SerializeExtensions {
         };
     }
 
-    internal static Func<byte[], T?> GetDeserializer<T>(this JsonSerializerOptions serializerOptions) where T : class {
+    internal static Func<byte[], T?> GetDeserializer<T>(this JsonSerializerOptions? serializerOptions) where T : class {
         var token = new TokenOf<T>();
         return token switch {
             TokenOf<string> => p => Encoding.UTF8.GetString(p) as T,
             TokenOf<byte[]> => p => p as T,
-            _ => payload => JsonSerializer.Deserialize<T>(payload, serializerOptions),
+            _ => payload => JsonSerializer.Deserialize<T>(payload, serializerOptions ?? DefaultSerializerOptions),
         };
     }
 }
