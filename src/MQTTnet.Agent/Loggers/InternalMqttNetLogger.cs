@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
-using MQTTnet.Client;
-using MQTTnet.Diagnostics;
+using MQTTnet.Diagnostics.Logger;
 
 namespace MQTTnet.Agent;
 

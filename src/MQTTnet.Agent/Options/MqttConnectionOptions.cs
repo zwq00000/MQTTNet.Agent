@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
 
 namespace MQTTnet.Agent;
 public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {

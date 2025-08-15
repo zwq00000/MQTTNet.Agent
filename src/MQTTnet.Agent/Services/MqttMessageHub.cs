@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 
 namespace MQTTnet.Agent;
@@ -25,18 +25,7 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         this.client = client;
         this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
-
-        // client.ConnectedAsync += OnConnected;
-        // client.DisconnectedAsync += OnDisconnected;
         client.ApplicationMessageReceivedAsync += OnMessageReceived;
-    }
-
-    private async Task OnConnected(MqttClientConnectedEventArgs args) {
-        //恢复 subjectMap
-        foreach (var topic in subjectMap.Keys) {
-            logger.LogInformation("恢复订阅 {topic}", topic);
-            await client.SubscribeAsync(topic);
-        }
     }
 
     private Task OnMessageReceived(MqttApplicationMessageReceivedEventArgs args) {
@@ -47,22 +36,13 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
                     return kv.Value(msg);
                 } catch (Exception ex) {
                     logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
+                    logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
                 }
             }
         }
         return Task.CompletedTask;
     }
 
-    private async Task OnDisconnected(MqttClientDisconnectedEventArgs arg) {
-        if (!_isDisposed) {
-            logger.LogWarning("mqtt client {clientId} 断开连接", client.Options.ClientId);
-            //重新连接
-            logger.LogInformation("5秒后尝试重新连接 MQTT Server");
-            await Task.Delay(TimeSpan.FromSeconds(5));
-            await this.client.ConnectAsync(client.Options);
-        }
-    }
 
     private Regex BuildTopicPattern(string topic) {
         var pattern = topic
@@ -78,6 +58,15 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             return (IObservable<MessageArgs<T>>)disposable;
         }
         var subject = BuildSubject<T>(topic);
+        subjectMap.Add(topic, subject);
+        return subject;
+    }
+
+    public IObservable<MessageArgs<T>> GetSubject<T>(string topic, JsonTypeInfo<T> jsonTypeInfo) where T : class {
+        if (this.subjectMap.TryGetValue(topic, out var disposable)) {
+            return (IObservable<MessageArgs<T>>)disposable;
+        }
+        var subject = BuildSubject<T>(topic, jsonTypeInfo);
         subjectMap.Add(topic, subject);
         return subject;
     }
@@ -105,11 +94,33 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             try {
                 subject.OnNext(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
+                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload)
                 });
             } catch (JsonException ex) {
                 logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
-                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.PayloadSegment));
+                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.Payload));
+            }
+            return Task.CompletedTask;
+        });
+        return subject;
+    }
+
+    ///<summary>
+    /// 构造 消息订阅
+    ///</summary>
+    private Subject<MessageArgs<T>> BuildSubject<T>(string topic, JsonTypeInfo<T> typeInfo) where T : class {
+        var pattern = BuildTopicPattern(topic);
+        var subject = new Subject<MessageArgs<T>>();
+        var convert = typeInfo.GetDeserializer<T>();
+        processMap.Add(pattern, msg => {
+            try {
+                subject.OnNext(new MessageArgs<T>() {
+                    Topic = msg.Topic,
+                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload)
+                });
+            } catch (JsonException ex) {
+                logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
+                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.Payload));
             }
             return Task.CompletedTask;
         });
@@ -121,11 +132,23 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             return;
         }
         this._isDisposed = true;
-        client.DisconnectedAsync -= OnDisconnected;
         client.ApplicationMessageReceivedAsync -= OnMessageReceived;
         client.Dispose();
         foreach (var item in subjectMap.Values) {
             item.Dispose();
         }
     }
+
+    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, JsonTypeInfo<T> options, CancellationToken cancellationToken = default) where T : class {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic, options);
+    }
+
+    public async Task<IDisposable> SubscribeAsync<T>(string topic, JsonTypeInfo<T> options, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic, options).Subscribe(onNext);
+    }
+
 }

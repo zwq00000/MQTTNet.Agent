@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace MQTTnet.Agent;
 /// <summary>
 /// 订阅/发布 消息代理接口

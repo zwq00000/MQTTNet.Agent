@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using MQTTnet.Client;
-using MQTTnet.Diagnostics;
+// using MQTTnet.Client;
+using MQTTnet.Diagnostics.PacketInspection;
 
 namespace MQTTnet.Agent;
 
@@ -14,7 +14,7 @@ internal class AutoReConnectedClient : IMqttClient {
     private readonly ISet<string> topics = new HashSet<string>();
 
     public AutoReConnectedClient(MqttClientOptions options, ILogger<AutoReConnectedClient> logger) {
-        this.innerClient = new MqttFactory().CreateMqttClient(new InternalMqttNetLogger(logger));
+        this.innerClient = new MqttClientFactory().CreateMqttClient(new InternalMqttNetLogger(logger));
         this.logger = logger;
         
         innerClient.ConnectAsync(options).Wait();
@@ -63,6 +63,17 @@ internal class AutoReConnectedClient : IMqttClient {
         remove => innerClient.InspectPacketAsync -= value;
     }
 
+    event Func<InspectMqttPacketEventArgs, Task> IMqttClient.InspectPacketAsync {
+        add {
+            throw new NotImplementedException();
+        }
+
+        remove {
+            throw new NotImplementedException();
+        }
+    }
+
+
     public Task<MqttClientConnectResult> ConnectAsync(MqttClientOptions options, CancellationToken cancellationToken = default) {
         return innerClient.ConnectAsync(options, cancellationToken);
     }
@@ -84,9 +95,9 @@ internal class AutoReConnectedClient : IMqttClient {
         return innerClient.PublishAsync(applicationMessage, cancellationToken);
     }
 
-    public Task SendExtendedAuthenticationExchangeDataAsync(MqttExtendedAuthenticationExchangeData data, CancellationToken cancellationToken = default) {
-        return innerClient.SendExtendedAuthenticationExchangeDataAsync(data, cancellationToken);
-    }
+    // public Task SendExtendedAuthenticationExchangeDataAsync(MqttExtendedAuthenticationExchangeData data, CancellationToken cancellationToken = default) {
+    //     return innerClient.SendExtendedAuthenticationExchangeDataAsync(data, cancellationToken);
+    // }
 
     public Task<MqttClientSubscribeResult> SubscribeAsync(MqttClientSubscribeOptions options, CancellationToken cancellationToken = default) {
         foreach (var item in options.TopicFilters) {
@@ -101,4 +112,9 @@ internal class AutoReConnectedClient : IMqttClient {
         }
         return innerClient.UnsubscribeAsync(options, cancellationToken);
     }
+
+    public Task SendEnhancedAuthenticationExchangeDataAsync(MqttEnhancedAuthenticationExchangeData data, CancellationToken cancellationToken = default) {
+        throw new NotImplementedException();
+    }
+
 }

@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
+using System.Buffers;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 
@@ -35,14 +36,8 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
         return new Regex(pattern, RegexOptions.Compiled);
     }
 
-    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, int capacity = DefaultChannelCapacity) where T : class {
-        var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
-        return BuildChannel<T>(topic, channel, capacity);
-    }
-
-    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, Channel<MessageArgs<T>> channel, int capacity = DefaultChannelCapacity) where T : class {
+    private Channel<MessageArgs<T>> BuildChannel<T>(string topic, Channel<MessageArgs<T>> channel, Func<ReadOnlySequence<byte>, T?> convert, int capacity = DefaultChannelCapacity) where T : class {
         var pattern = BuildTopicPattern(topic);
-        var convert = serializerOptions.GetDeserializer<T>();
         client.ApplicationMessageReceivedAsync += async (args) => {
             var msg = args.ApplicationMessage;
             if (!pattern.IsMatch(topic)) {
@@ -51,11 +46,11 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             try {
                 await channel.Writer.WriteAsync(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.PayloadSegment.Count == 0 ? null : convert(msg.PayloadSegment.Array!)
+                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload)
                 });
             } catch (Exception ex) {
                 logger.LogWarning(ex, "解析 {topic} 消息发生异常,{msg}", msg.Topic, ex.Message);
-                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.PayloadSegment);
+                logger.LogTrace("topic:'{topic}' payload:{payload}", msg.Topic, msg.Payload);
             }
         };
         completeActions.Enqueue(() => channel.Writer.Complete());
@@ -63,7 +58,9 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
     }
 
     public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class {
-        var channel = BuildChannel<T>(topic);
+        var convert = serializerOptions.GetDeserializer<T>();
+        var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
+        BuildChannel<T>(topic, channel, convert);
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
         return channel.Reader;
@@ -71,8 +68,9 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
 
     public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string[] topics, CancellationToken cancellationToken = default) where T : class {
         var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
+        var convert = serializerOptions.GetDeserializer<T>();
         foreach (var topic in topics) {
-            BuildChannel<T>(topic, channel);
+            BuildChannel<T>(topic, channel, convert);
             var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
             logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
         }
@@ -85,6 +83,27 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
             completeActions.Dequeue()();
         }
     }
+
+    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string topic, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default) where T : class {
+          var convert = jsonTypeInfo.GetDeserializer<T>();
+        var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
+        BuildChannel<T>(topic, channel, convert);
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
+        return channel.Reader;
+    }
+
+    public async Task<ChannelReader<MessageArgs<T>>> GetChannelAsync<T>(string[] topics, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default) where T : class {
+         var channel = System.Threading.Channels.Channel.CreateBounded<MessageArgs<T>>(DefaultChannelCapacity);
+        var convert = jsonTypeInfo.GetDeserializer<T>();
+        foreach (var topic in topics) {
+            BuildChannel<T>(topic, channel, convert);
+            var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+            logger.LogInformation("订阅 {topic} result:{result}", topic, string.Join(',', result.Items.Select(r => r.ResultCode)));
+        }
+        return channel.Reader;
+    }
+
 }
 
 internal readonly struct TokenOf<T> { }

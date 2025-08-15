@@ -1,8 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MQTTnet.Client;
-using MQTTnet.Diagnostics;
+using MQTTnet.Diagnostics.Logger;
 
 namespace MQTTnet.Agent;
 
@@ -44,7 +43,7 @@ public static partial class ServiceExtensions {
             throw new ArgumentNullException(nameof(optionBuilder));
         }
         services.AddOptions<MqttConnectionOptions>().Configure(optionBuilder);
-        var factory = new MqttFactory();
+        var factory = new MqttClientFactory();
         services.AddSingleton<IMqttNetLogger, InternalMqttNetLogger>();
 
         //注册 默认 IMqttClient,已经连接

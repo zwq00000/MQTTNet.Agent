@@ -4,7 +4,7 @@ namespace MQTTnet.Agent;
 /// 消息传递参数
 /// </summary>
 /// <typeparam name="T">消息载荷类型</typeparam>
-public readonly struct MessageArgs<T> where T : class {
+public readonly struct MessageArgs<T> {
 
     /// <summary>
     /// Profile 主题

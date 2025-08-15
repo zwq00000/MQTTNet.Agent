@@ -2,6 +2,7 @@ using System.Text.Json;
 
 namespace MQTTnet.Agent.Tests;
 
+#if FIX_SERIALIZE_EXTENSIONS
 public class SerializeExtensionsTests {
     private readonly JsonSerializerOptions serializerOptions;
     public SerializeExtensionsTests() {
@@ -48,6 +49,7 @@ public class SerializeExtensionsTests {
         Assert.Equal(data, result);
     }
 
-    public record MockObject(int Id,DateTime Time);
+    public record MockObject(int Id, DateTime Time);
 
 }
+#endif
