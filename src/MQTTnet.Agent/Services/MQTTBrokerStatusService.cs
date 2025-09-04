@@ -12,7 +12,7 @@ internal class MQTTBrokerStatusService : IDisposable {
     public MQTTBrokerStatusService(IMessageSubscriber subscriber, ILogger<MQTTBrokerStatusService> logger) {
         this.subscriber = subscriber;
         this.logger = logger;
-        subscriber.SubscribeAsync<string>("$SYS/#").ContinueWith(t => {
+        subscriber.SubscribeAsync("$SYS/#").ContinueWith(t => {
             if (t.IsCompleted) {
                 t.Result.Subscribe(OnReceived);
             }

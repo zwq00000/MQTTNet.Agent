@@ -16,10 +16,8 @@ public interface IMessagePublisher {
     /// <param name="retain">消息保留标志,默认为 <see langword="false"/></param>
     /// <param name="qos">quality of service level</param>
     /// <param name="cancellationToken"></param>
-    /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    Task<bool> PublishAsync<T>(string topic, T? payload, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
-
+    Task<bool> PublishAsync(string topic, byte[] payload, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 发布消息
@@ -32,7 +30,7 @@ public interface IMessagePublisher {
     /// <param name="cancellationToken"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    Task<bool> PublishAsync<T>(string topic, T? payload, JsonSerializerOptions options, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
+    Task<bool> PublishAsync<T>(string topic, T? payload, JsonSerializerOptions options, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken)) ;
 
     /// <summary>
     /// 发布消息

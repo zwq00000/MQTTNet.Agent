@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-// using MQTTnet.Client;
 using MQTTnet.Diagnostics.PacketInspection;
 
 namespace MQTTnet.Agent;
@@ -11,12 +10,22 @@ internal class AutoReConnectedClient : IMqttClient {
     private readonly IMqttClient innerClient;
     private readonly ILogger logger;
 
-    private readonly ISet<string> topics = new HashSet<string>();
+    private readonly HashSet<string> topics = [];
 
     public AutoReConnectedClient(MqttClientOptions options, ILogger<AutoReConnectedClient> logger) {
         this.innerClient = new MqttClientFactory().CreateMqttClient(new InternalMqttNetLogger(logger));
         this.logger = logger;
-        
+
+        innerClient.ConnectAsync(options).Wait();
+
+        innerClient.ConnectedAsync += OnConnected;
+        innerClient.DisconnectedAsync += OnDisconnected;
+    }
+
+    public AutoReConnectedClient(MqttClientFactory factory, MqttClientOptions options, ILogger<AutoReConnectedClient> logger) {
+        this.innerClient = factory.CreateMqttClient(new InternalMqttNetLogger(logger));
+        this.logger = logger;
+
         innerClient.ConnectAsync(options).Wait();
 
         innerClient.ConnectedAsync += OnConnected;

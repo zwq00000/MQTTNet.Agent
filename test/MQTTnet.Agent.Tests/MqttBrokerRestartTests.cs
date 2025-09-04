@@ -1,5 +1,6 @@
 
 using System.Diagnostics;
+using System.Text;
 
 namespace MQTTnet.Agent.Tests;
 
@@ -48,7 +49,7 @@ public class MqttBrokerRestartTests {
         var subs = factory.GetService<IMessageSubscriber>();
         Assert.NotNull(subs);
 
-        var sub = await subs.SubscribeAsync<string>(testTopic);
+        var sub = await subs.SubscribeAsync(testTopic);
         var reciveCount = 0;
         sub.Subscribe(e => {
             output.WriteJson(e);
@@ -69,7 +70,7 @@ public class MqttBrokerRestartTests {
         var subs = factory.GetService<IMessageAgent>();
         Assert.NotNull(subs);
         var cancellationSource = new CancellationTokenSource();
-        var channel = await subs.GetChannelAsync<string>(testTopic);
+        var channel = await subs.GetChannelAsync([testTopic],e=>Encoding.UTF8.GetString(e));
         var reciveCount = 0;
         var task1 = Task.Run(async () => {
             while (!cancellationSource.IsCancellationRequested) {

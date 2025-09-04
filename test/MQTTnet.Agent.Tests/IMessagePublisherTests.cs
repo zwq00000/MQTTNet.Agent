@@ -53,7 +53,7 @@ public class IMessagePublisherTests {
             result = await ReciveAsync<string>(topic, cancellationSource.Token);
         });
         await Task.Delay(100);
-        await publisher.PublishAsync<object>(topic, 123.4f);
+        await publisher.PublishStringAsync(topic, 123.4f.ToString());
         await Task.Delay(1000, cancellationSource.Token);
 
         Assert.NotNull(result.Payload);
@@ -63,7 +63,7 @@ public class IMessagePublisherTests {
     private async Task<MessageArgs<T>> ReciveAsync<T>(string topic, CancellationToken cancellationToken) where T : class {
         var agent = factory.GetService<IMessageAgent>();
         Assert.NotNull(agent);
-        var channel = await agent.GetChannelAsync<T>(topic, cancellationToken);
+        var channel = await agent.GetChannelAsync<T>([topic], JsonSerializerOptions.Default, cancellationToken);
         return await channel.ReadAsync(cancellationToken);
     }
 }

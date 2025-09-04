@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Buffers;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
@@ -14,16 +15,14 @@ namespace MQTTnet.Agent;
 /// </summary>
 internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
     private readonly IMqttClient client;
-    private readonly JsonSerializerOptions serializerOptions;
     private readonly ILogger<MqttMessageHub> logger;
     private readonly IDictionary<string, IDisposable> subjectMap = new Dictionary<string, IDisposable>();
 
     private readonly IDictionary<Regex, Func<MqttApplicationMessage, Task>> processMap = new Dictionary<Regex, Func<MqttApplicationMessage, Task>>();
     private bool _isDisposed = false;
 
-    public MqttMessageHub(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttMessageHub> logger) : base(client, jsonOptions, logger) {
+    public MqttMessageHub(IMqttClient client, ILogger<MqttMessageHub> logger) : base(client, logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
         client.ApplicationMessageReceivedAsync += OnMessageReceived;
     }
@@ -43,7 +42,11 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         return Task.CompletedTask;
     }
 
-
+    /// <summary>
+    /// 构建主题匹配模式
+    /// </summary>
+    /// <param name="topic">主题</param>
+    /// <returns></returns>
     private Regex BuildTopicPattern(string topic) {
         var pattern = topic
                         .Replace("/", "\\/")
@@ -53,70 +56,67 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
         return new Regex(pattern, RegexOptions.Compiled);
     }
 
-    public IObservable<MessageArgs<T>> GetSubject<T>(string topic) where T : class {
+    /// <summary>
+    /// 获取消息主题订阅
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">主题</param>
+    /// <param name="payloadConvert">消息转换函数</param>
+    /// <returns></returns>
+    public IObservable<MessageArgs<T>> GetSubject<T>(string topic, Func<ReadOnlySequence<byte>, T?> payloadConvert) {
         if (this.subjectMap.TryGetValue(topic, out var disposable)) {
-            return (IObservable<MessageArgs<T>>)disposable;
-        }
-        var subject = BuildSubject<T>(topic);
-        subjectMap.Add(topic, subject);
-        return subject;
-    }
-
-    public IObservable<MessageArgs<T>> GetSubject<T>(string topic, JsonTypeInfo<T> jsonTypeInfo) where T : class {
-        if (this.subjectMap.TryGetValue(topic, out var disposable)) {
-            return (IObservable<MessageArgs<T>>)disposable;
-        }
-        var subject = BuildSubject<T>(topic, jsonTypeInfo);
-        subjectMap.Add(topic, subject);
-        return subject;
-    }
-
-    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, CancellationToken cancellationToken = default) where T : class {
-        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
-        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
-        return GetSubject<T>(topic);
-    }
-
-    public async Task<IDisposable> SubscribeAsync<T>(string topic, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
-        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
-        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
-        return GetSubject<T>(topic).Subscribe(onNext);
-    }
-
-    ///<summary>
-    /// 构造 消息订阅
-    ///</summary>
-    private Subject<MessageArgs<T>> BuildSubject<T>(string topic) where T : class {
-        var pattern = BuildTopicPattern(topic);
-        var subject = new Subject<MessageArgs<T>>();
-        var convert = this.serializerOptions.GetDeserializer<T>();
-        processMap.Add(pattern, msg => {
-            try {
-                subject.OnNext(new MessageArgs<T>() {
-                    Topic = msg.Topic,
-                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload)
-                });
-            } catch (JsonException ex) {
-                logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
-                logger.LogInformation("source:{payload}", Encoding.UTF8.GetString(msg.Payload));
+            if (disposable is Subject<MessageArgs<T>> existedSubject) {
+                return existedSubject;
             }
-            return Task.CompletedTask;
-        });
+        }
+        var subject = BuildSubject<T>(topic, payloadConvert);
+        subjectMap.Add(topic, subject);
         return subject;
+    }
+
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="serializerOptions">Json 序列化选项</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, JsonSerializerOptions serializerOptions, CancellationToken cancellationToken = default) where T : class {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic, serializerOptions.GetDeserializer<T>());
+    }
+
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="options">Json 序列化选项</param>
+    /// <param name="onNext">消息处理函数</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<IDisposable> SubscribeAsync<T>(string topic, JsonSerializerOptions options, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic, options.GetDeserializer<T>()).Subscribe(onNext);
     }
 
     ///<summary>
     /// 构造 消息订阅
     ///</summary>
-    private Subject<MessageArgs<T>> BuildSubject<T>(string topic, JsonTypeInfo<T> typeInfo) where T : class {
+    /// <param name="topic">主题</param>
+    /// <param name="payloadConvert">消息转换函数</param>
+    /// <returns></returns>
+    private Subject<MessageArgs<T>> BuildSubject<T>(string topic, Func<ReadOnlySequence<byte>, T?> payloadConvert) {
         var pattern = BuildTopicPattern(topic);
         var subject = new Subject<MessageArgs<T>>();
-        var convert = typeInfo.GetDeserializer<T>();
         processMap.Add(pattern, msg => {
             try {
                 subject.OnNext(new MessageArgs<T>() {
                     Topic = msg.Topic,
-                    Payload = msg.Payload.Length == 0 ? null : convert(msg.Payload)
+                    Payload = msg.Payload.Length == 0 ? default(T) : payloadConvert(msg.Payload)
                 });
             } catch (JsonException ex) {
                 logger.LogWarning(ex, "订阅 {topic} 解析 {type} 发生异常,{msg}", topic, typeof(T).Name, ex.Message);
@@ -138,17 +138,57 @@ internal class MqttMessageHub : MqttClientMessagePublisher, IMessageHub {
             item.Dispose();
         }
     }
-
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="options">Json 序列化选项</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, JsonTypeInfo<T> options, CancellationToken cancellationToken = default) where T : class {
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
-        return GetSubject<T>(topic, options);
+        return GetSubject<T>(topic, options.GetDeserializer<T>());
     }
 
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="options">Json 序列化选项</param>
+    /// <param name="onNext">消息处理函数</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     public async Task<IDisposable> SubscribeAsync<T>(string topic, JsonTypeInfo<T> options, Action<MessageArgs<T>> onNext, CancellationToken cancellationToken = default) where T : class {
         var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
         logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
-        return GetSubject<T>(topic, options).Subscribe(onNext);
+        return GetSubject<T>(topic, options.GetDeserializer<T>()).Subscribe(onNext);
+    }
+
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<IObservable<MessageArgs<string>>> SubscribeAsync(string topic, CancellationToken cancellationToken = default) {
+        return await this.SubscribeAsync<string>(topic, b => Encoding.UTF8.GetString(b), cancellationToken);
+    }
+
+    /// <summary>
+    /// 订阅消息主题
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">订阅主题</param>
+    /// <param name="payloadConvert">消息转换函数</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task<IObservable<MessageArgs<T>>> SubscribeAsync<T>(string topic, Func<ReadOnlySequence<byte>, T?> payloadConvert, CancellationToken cancellationToken = default) {
+        var result = await client.SubscribeAsync(topic, cancellationToken: cancellationToken);
+        logger.LogInformation("订阅 {topic} result:{result}", topic, result.Items.First());
+        return GetSubject<T>(topic, payloadConvert);
     }
 
 }

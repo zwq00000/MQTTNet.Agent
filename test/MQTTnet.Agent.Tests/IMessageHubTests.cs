@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace MQTTnet.Agent.Tests;
 
 public class IMessageHubTests {
@@ -9,38 +11,40 @@ public class IMessageHubTests {
         this.factory = new TestFactory();
     }
 
-
     [Fact]
     public async void TestDispose() {
         var topic = TestFactory.GetTestTopic();
-        var agent = factory.GetService<IMessageHub>();
+        using var agent = factory.NewScope.ServiceProvider.GetRequiredService<IMessageHub>();
         Assert.NotNull(agent);
-        var subs = await agent.SubscribeAsync<string>(topic);
+
         int count = 0;
-        subs.Subscribe(s => {
-            output.WriteLine(s.Payload);
+        agent.SubscribeAsync(topic).Result.Subscribe(s => {
+            Assert.Equal(topic, s.Topic);
+            Assert.NotNull(s.Payload);
             count++;
         });
+
         for (var i = 0; i < 10; i++) {
-            await agent.PublishAsync<string>(topic, i.ToString());
+            await agent.PublishStringAsync(topic, i.ToString());
         }
-        await Task.Delay(10);
-        agent.Dispose();
+        await Task.Delay(100);
 
         Assert.Equal(10, count);
     }
+
     [Fact]
-    public async void TestSubscribe() {
+    public async void TestSubscribeOnNext() {
         var topic = TestFactory.GetTestTopic();
-        var agent = factory.GetService<IMessageHub>();
+        var agent = factory.NewScope.ServiceProvider.GetService<IMessageHub>();
         Assert.NotNull(agent);
         int count = 0;
-        using var subs = await agent.SubscribeAsync<string>(topic, s => {
-            output.WriteLine(s.Payload);
+        using var subs = agent.SubscribeAsync(topic).Result.Subscribe(s => {
+            Assert.Equal(topic, s.Topic);
+            Assert.NotNull(s.Payload);
             count++;
         });
         for (var i = 0; i < 10; i++) {
-            await agent.PublishAsync<string>(topic, i.ToString());
+            await agent.PublishStringAsync(topic, i.ToString());
         }
         await Task.Delay(100);
         Assert.Equal(10, count);

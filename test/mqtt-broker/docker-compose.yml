@@ -7,3 +7,16 @@ services:
       - 1883:1883
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./dynamic-security.json:/mosquitto/dynamic-security.json
+
+  dynsec_admin:
+    image: zivillian/dynamic-security-admin:latest
+    depends_on:
+      - mqtt_broker
+    ports:
+      - 5083:80
+    environment:
+      - MQTTSERVER=mqtt_broker
+      - MqttPort=1883
+      - MqttUsername=admin
+      - MqttPassword=123456

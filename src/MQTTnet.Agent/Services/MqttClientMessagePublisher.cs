@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
@@ -9,21 +8,23 @@ namespace MQTTnet.Agent;
 
 internal class MqttClientMessagePublisher : IMessagePublisher {
     private readonly IMqttClient client;
-    private readonly JsonSerializerOptions serializerOptions;
     private readonly ILogger logger;
 
-    public MqttClientMessagePublisher(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger<MqttClientMessagePublisher> logger) {
+    public MqttClientMessagePublisher(IMqttClient client, ILogger<MqttClientMessagePublisher> logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
     }
 
-    internal MqttClientMessagePublisher(IMqttClient client, IOptions<JsonOptions> jsonOptions, ILogger logger) {
+    internal MqttClientMessagePublisher(IMqttClient client, ILogger logger) {
         this.client = client;
-        this.serializerOptions = jsonOptions.Value.SerializerOptions;
         this.logger = logger;
     }
 
+    /// <summary>
+    /// 检查连接状态
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     private async Task CheckConnected(CancellationToken cancellationToken = default) {
         if (this.client.IsConnected) {
             return;
@@ -33,44 +34,25 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
         await this.client.ConnectAsync(this.client.Options, cancellationToken);
     }
 
-    public async Task<bool> PublishAsync<T>(string topic, T? payload, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) where T : class {
+    /// <summary>
+    /// 发布消息
+    /// </summary>
+    /// <param name="topic">主题</param>
+    /// <param name="payload">负载</param>
+    /// <param name="retain">是否保留消息</param>
+    /// <param name="qos">服务质量</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<bool> PublishAsync(string topic, byte[] payload, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(topic)) {
             throw new ArgumentNullException(nameof(topic));
         }
 
-        if (payload is string payloadStr) {
-            return await PublishStringAsync(topic, payloadStr, retain, qos, cancellationToken);
-        }
-
-        var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), serializerOptions);
         var msg = new MqttApplicationMessageBuilder()
                     .WithTopic(topic)
-                    .WithPayload(bytes)
-                    .WithRetainFlag(retain)
-                    .WithQualityOfServiceLevel((Protocol.MqttQualityOfServiceLevel)qos)
-                    // .WithContentType("application/json")
-                    .Build();
-        await CheckConnected(cancellationToken);
-        var result = await this.client.PublishAsync(msg, cancellationToken);
-        if (result.ReasonCode != MqttClientPublishReasonCode.Success) {
-            logger.LogWarning("发布主题 {topic} 错误,{code}:{reason}", topic, result.ReasonCode, result.ReasonString);
-        }
-        return result.IsSuccess;
-    }
-
-    public async Task<bool> PublishAsync<T>(string topic, T? payload, JsonSerializerOptions options, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) where T : class {
-        if (string.IsNullOrWhiteSpace(topic)) {
-            throw new ArgumentNullException(nameof(topic));
-        }
-
-        if (payload is string payloadStr) {
-            return await PublishStringAsync(topic, payloadStr, retain, qos, cancellationToken);
-        }
-
-        var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), options);
-        var msg = new MqttApplicationMessageBuilder()
-                    .WithTopic(topic)
-                    .WithPayload(bytes)
+                    .WithPayload(payload)
                     .WithRetainFlag(retain)
                     .WithQualityOfServiceLevel((Protocol.MqttQualityOfServiceLevel)qos)
                     // .WithContentType("application/json")
@@ -84,14 +66,44 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
     }
 
     /// <summary>
+    /// 发布消息
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="topic">主题</param>
+    /// <param name="payload">负载</param>
+    /// <param name="options">Json 序列化选项</param>
+    /// <param name="retain">是否保留消息</param>
+    /// <param name="qos">服务质量</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="JsonException"></exception>
+    public async Task<bool> PublishAsync<T>(string topic, T? payload, JsonSerializerOptions options, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(topic)) {
+            throw new ArgumentNullException(nameof(topic));
+        }
+
+        if (payload is string payloadStr) {
+            return await PublishStringAsync(topic, payloadStr, retain, qos, cancellationToken);
+        }
+
+        var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, payload.GetType(), options);
+        if (bytes == null) {
+            return false;
+        }
+        return await PublishAsync(topic, bytes, retain, qos, cancellationToken);
+    }
+
+    /// <summary>
     /// 使用 JsonTypeInfo 发布消息
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="topic"></param>
-    /// <param name="payload"></param>
-    /// <param name="options"></param>
-    /// <param name="retain"></param>
-    /// <param name="qos"></param>
+    /// <param name="topic">主题</param>
+    /// <param name="payload">负载</param>
+    /// <param name="options">Json 序列化选项</param>
+    /// <param name="retain">是否保留消息</param>
+    /// <param name="qos">服务质量</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentNullException"></exception>
@@ -105,30 +117,30 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
         }
 
         var bytes = payload == null ? null : JsonSerializer.SerializeToUtf8Bytes(payload, options);
-        var msg = new MqttApplicationMessageBuilder()
-                    .WithTopic(topic)
-                    .WithPayload(bytes)
-                    .WithRetainFlag(retain)
-                    .WithQualityOfServiceLevel((Protocol.MqttQualityOfServiceLevel)qos)
-                    // .WithContentType("application/json")
-                    .Build();
-        await CheckConnected(cancellationToken);
-        var result = await this.client.PublishAsync(msg, cancellationToken);
-        if (result.ReasonCode != MqttClientPublishReasonCode.Success) {
-            logger.LogWarning("发布主题 {topic} 错误,{code}:{reason}", topic, result.ReasonCode, result.ReasonString);
+        if (bytes == null) {
+            return false;
         }
-        return result.IsSuccess;
+        return await PublishAsync(topic, bytes, retain, qos, cancellationToken);
     }
 
+    /// <summary>
+    /// 发布字符串消息
+    /// </summary>
+    /// <param name="topic">主题</param>
+    /// <param name="payload">负载</param>
+    /// <param name="retain">是否保留消息</param>
+    /// <param name="qos">服务质量</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
     public async Task<bool> PublishStringAsync(string topic, string payload, bool retain = false, [Range(0, 2)] int qos = 0, CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(topic)) {
             throw new ArgumentNullException(nameof(topic));
         }
-        await CheckConnected(cancellationToken);
-        var result = await client.PublishStringAsync(topic, payload, retain: retain, qualityOfServiceLevel: (Protocol.MqttQualityOfServiceLevel)qos, cancellationToken: cancellationToken);
-        if (result.ReasonCode != MqttClientPublishReasonCode.Success) {
-            logger.LogWarning("发布主题 {topic} 错误,{code}:{reason}", topic, result.ReasonCode, result.ReasonString);
+        if (string.IsNullOrWhiteSpace(payload)) {
+            throw new ArgumentNullException(nameof(payload));
         }
-        return result.IsSuccess;
+        var bytes = Encoding.UTF8.GetBytes(payload);
+        return await PublishAsync(topic, bytes, retain, qos, cancellationToken);
     }
 }

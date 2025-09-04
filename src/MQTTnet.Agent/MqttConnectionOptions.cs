@@ -1,7 +1,5 @@
-using Microsoft.Extensions.Options;
-
 namespace MQTTnet.Agent;
-public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
+public record MqttConnectionOptions {
 
     /// <summary>
     /// MQTT Broker connection url
@@ -9,14 +7,29 @@ public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
     /// <value></value>
     public Uri ConnectionUri { get; set; }
 
+    /// <summary>
+    /// MQTT Broker Login User
+    /// </summary>
     public string UserName { get; set; }
 
+    /// <summary>
+    /// MQTT Broker Login Password
+    /// </summary>
     public string Password { get; set; }
+
+    /// <summary>
+    /// MQTT Broker Login Password
+    /// </summary>
+    public string ClientId { get; set; }
+
+    /// <summary>
+    /// MQTT Client Clean Session
+    /// </summary>
 
     public bool ClearSession { get; set; } = true;
 
 
-     public MqttClientOptions BuildClientOptions() {
+    public MqttClientOptions BuildClientOptions() {
         if (ConnectionUri == null) {
             throw new ArgumentNullException(nameof(ConnectionUri));
         }
@@ -27,6 +40,9 @@ public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
         }
         if (ClearSession) {
             builder.WithCleanSession();
+        }
+        if (!string.IsNullOrEmpty(ClientId)) {
+            builder.WithClientId(ClientId);
         }
         return builder.Build();
     }
@@ -42,6 +58,10 @@ public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
         if (ClearSession) {
             builder.WithCleanSession();
         }
+        if (!string.IsNullOrEmpty(ClientId)) {
+            builder.WithClientId(ClientId);
+        }
+
         return builder.Build();
     }
 
@@ -52,7 +72,9 @@ public class MqttConnectionOptions : IOptions<MqttConnectionOptions> {
         if (ClearSession) {
             builder.WithCleanSession();
         }
+        if (!string.IsNullOrEmpty(ClientId)) {
+            builder.WithClientId(ClientId);
+        }
         return builder.Build();
     }
-    MqttConnectionOptions IOptions<MqttConnectionOptions>.Value => this;
 }

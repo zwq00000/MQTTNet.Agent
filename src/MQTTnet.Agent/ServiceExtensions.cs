@@ -39,18 +39,15 @@ public static partial class ServiceExtensions {
     /// <param name="lifetime"></param>
     /// <returns></returns>
     public static IServiceCollection AddMqttClient(this IServiceCollection services, Action<MqttConnectionOptions> optionBuilder, ServiceLifetime lifetime = ServiceLifetime.Transient) {
-        if (optionBuilder == null) {
-            throw new ArgumentNullException(nameof(optionBuilder));
-        }
+        ArgumentNullException.ThrowIfNull(optionBuilder);
         services.AddOptions<MqttConnectionOptions>().Configure(optionBuilder);
-        var factory = new MqttClientFactory();
-        services.AddSingleton<IMqttNetLogger, InternalMqttNetLogger>();
 
         //注册 默认 IMqttClient,已经连接
         services.Add(new ServiceDescriptor(typeof(IMqttClient), s => {
             var options = s.GetRequiredService<IOptions<MqttConnectionOptions>>();
             var clientOptions = options.Value.BuildClientOptions();
             var logger = s.GetRequiredService<ILogger<AutoReConnectedClient>>();
+
             return new  AutoReConnectedClient(clientOptions,logger);
         }, lifetime));
 

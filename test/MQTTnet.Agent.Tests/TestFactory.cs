@@ -6,10 +6,17 @@ namespace MQTTnet.Agent.Tests;
 
 public class TestFactory {
     public IServiceScope Scope { get; private set; }
+
+    public IServiceScope NewScope { get => this.Services.CreateScope(); }
     private static Uri MqttUri = new Uri("mqtt://localhost:1883");
+    const string ClientId = "test-mqttnet-agent";
 
     private static void UseMqttClient(IServiceCollection s) {
-        s.AddMqttClient(opt => opt.ConnectionUri = MqttUri);
+        s.AddMqttClient(opt => {
+            opt.ConnectionUri = MqttUri;
+            opt.ClientId = ClientId;
+            opt.ClearSession = false;
+        });
     }
 
     public TestFactory() : this(UseMqttClient) { }
