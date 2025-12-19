@@ -22,6 +22,14 @@ internal class AutoReConnectedClient : IMqttClient {
         innerClient.DisconnectedAsync += OnDisconnected;
     }
 
+    internal AutoReConnectedClient(IMqttClient mqttClient, ILogger<AutoReConnectedClient> logger) {
+        this.innerClient = mqttClient;
+        this.logger = logger;
+
+        innerClient.ConnectedAsync += OnConnected;
+        innerClient.DisconnectedAsync += OnDisconnected;
+    }
+
     public AutoReConnectedClient(MqttClientFactory factory, MqttClientOptions options, ILogger<AutoReConnectedClient> logger) {
         this.innerClient = factory.CreateMqttClient(new InternalMqttNetLogger(logger));
         this.logger = logger;

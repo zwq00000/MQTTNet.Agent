@@ -33,11 +33,11 @@ public record Message<T> {
     /// 消息来源
     /// </summary>
     /// <value></value>
-    public string Source { get; init; }
+    public string? Source { get; init; }
 
     /// <summary>
     /// 消息体
     /// </summary>
     /// <value></value>
-    public T Payload { get; init; }
+    public T? Payload { get; init; }
 }

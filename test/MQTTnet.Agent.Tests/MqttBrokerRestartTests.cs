@@ -5,7 +5,11 @@ using System.Text;
 namespace MQTTnet.Agent.Tests;
 
 /// <summary>
-/// 测试 自动重新连接 MQTT 客户端
+/// MQTT Broker重启测试
+/// 测试自动重连MQTT客户端在MQTT broker重启时的行为和恢复能力
+/// 验证客户端能够检测到broker中断、自动重连并恢复订阅关系
+/// 确保系统在broker维护或故障时的可用性和数据完整性
+/// 注意：此测试需要Docker环境运行MQTT broker
 /// </summary>
 public class MqttBrokerRestartTests {
     private readonly ITestOutputHelper output;
@@ -43,6 +47,12 @@ public class MqttBrokerRestartTests {
         }
     }
 
+    /// <summary>
+    /// 测试MQTT broker重启后的订阅恢复功能
+    /// 验证订阅者在broker重启后能够自动恢复订阅关系
+    /// 测试场景：订阅主题 -> 发送消息 -> 重启broker -> 发送消息
+    /// 确保重启前后都能收到消息，验证自动重连和订阅恢复机制
+    /// </summary>
     [Fact]
     public async Task TestSubscribe() {
         var testTopic = $"TEST/{DateTime.Now.Ticks}";
@@ -70,12 +80,12 @@ public class MqttBrokerRestartTests {
         var subs = factory.GetService<IMessageAgent>();
         Assert.NotNull(subs);
         var cancellationSource = new CancellationTokenSource();
-        var channel = await subs.GetChannelAsync([testTopic],e=>Encoding.UTF8.GetString(e));
+        var channel = await subs.GetChannelAsync([testTopic], e => Encoding.UTF8.GetString(e));
         var reciveCount = 0;
         var task1 = Task.Run(async () => {
             while (!cancellationSource.IsCancellationRequested) {
                 var msg = await channel.ReadAsync();
-                 output.WriteJson(msg);
+                output.WriteJson(msg);
                 reciveCount++;
             }
         });

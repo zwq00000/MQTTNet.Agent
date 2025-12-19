@@ -4,18 +4,15 @@ using System.Runtime.CompilerServices;
 
 namespace MQTTnet.Agent.Tests;
 
-public class TestFactory {
+public class TestFactory : IDisposable {
     public IServiceScope Scope { get; private set; }
 
     public IServiceScope NewScope { get => this.Services.CreateScope(); }
     private static Uri MqttUri = new Uri("mqtt://localhost:1883");
-    const string ClientId = "test-mqttnet-agent";
-
     private static void UseMqttClient(IServiceCollection s) {
         s.AddMqttClient(opt => {
             opt.ConnectionUri = MqttUri;
-            opt.ClientId = ClientId;
-            opt.ClearSession = false;
+            opt.ClearSession = true;
         });
     }
 
@@ -37,6 +34,11 @@ public class TestFactory {
     }
 
     public static string GetTestTopic([CallerMemberName] string caller = "") {
-        return $"test/{nameof(caller)}/{DateTime.Now.Ticks}";
+        return $"test/{caller}/{DateTime.Now.Ticks}";
     }
+
+    public void Dispose() {
+        Scope.Dispose();
+    }
+
 }

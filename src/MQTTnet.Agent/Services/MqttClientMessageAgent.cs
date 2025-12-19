@@ -50,7 +50,7 @@ internal class MqttClientMessageAgent : MqttClientMessagePublisher, IMessageAgen
         var pattern = BuildTopicPattern(topic);
         client.ApplicationMessageReceivedAsync += async (args) => {
             var msg = args.ApplicationMessage;
-            if (!pattern.IsMatch(topic)) {
+            if (!pattern.IsMatch(msg.Topic)) {
                 return;
             }
             try {

@@ -55,4 +55,12 @@ public interface IMessagePublisher {
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task<bool> PublishStringAsync(string topic, string payload, bool retain = false, [Range(0, 3)] int qos = 0, CancellationToken cancellationToken = default(CancellationToken));
+
+    /// <summary>
+    /// 删除保留消息
+    /// </summary>
+    /// <param name="topic">删除保留消息主题</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<bool> RemoveRetainAsync(string topic, CancellationToken cancellationToken = default);
 }

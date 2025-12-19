@@ -1,4 +1,5 @@
 namespace MQTTnet.Agent;
+
 public record MqttConnectionOptions {
 
     /// <summary>
@@ -25,26 +26,23 @@ public record MqttConnectionOptions {
     /// <summary>
     /// MQTT Client Clean Session
     /// </summary>
-
     public bool ClearSession { get; set; } = true;
 
-
-    public MqttClientOptions BuildClientOptions() {
-        if (ConnectionUri == null) {
-            throw new ArgumentNullException(nameof(ConnectionUri));
-        }
-        var builder = new MqttClientOptionsBuilder().WithConnectionUri(ConnectionUri);
-
+    /// <summary>
+    /// 创建 MQTT Client Options Builder
+    /// </summary>
+    /// <returns></returns>
+    public MqttClientOptionsBuilder CreateOptionsBuilder() {
+        var builder = new MqttClientOptionsBuilder();
+        builder.WithConnectionUri(ConnectionUri);
         if (!string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Password)) {
             builder.WithCredentials(UserName, Password);
         }
-        if (ClearSession) {
-            builder.WithCleanSession();
-        }
+        builder.WithCleanSession(ClearSession);
         if (!string.IsNullOrEmpty(ClientId)) {
             builder.WithClientId(ClientId);
         }
-        return builder.Build();
+        return builder;
     }
 
     public MqttClientOptions Build(MqttClientOptionsBuilder builder) {
@@ -55,9 +53,7 @@ public record MqttConnectionOptions {
         if (!string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Password)) {
             builder.WithCredentials(UserName, Password);
         }
-        if (ClearSession) {
-            builder.WithCleanSession();
-        }
+        builder.WithCleanSession(ClearSession);
         if (!string.IsNullOrEmpty(ClientId)) {
             builder.WithClientId(ClientId);
         }
@@ -67,11 +63,8 @@ public record MqttConnectionOptions {
 
     public MqttClientOptions Build(string userName, string password) {
         var builder = new MqttClientOptionsBuilder();
-        builder.WithConnectionUri(ConnectionUri)
-        .WithCredentials(userName, password);
-        if (ClearSession) {
-            builder.WithCleanSession();
-        }
+        builder.WithConnectionUri(ConnectionUri).WithCredentials(userName, password);
+        builder.WithCleanSession(ClearSession);
         if (!string.IsNullOrEmpty(ClientId)) {
             builder.WithClientId(ClientId);
         }

@@ -143,4 +143,29 @@ internal class MqttClientMessagePublisher : IMessagePublisher {
         var bytes = Encoding.UTF8.GetBytes(payload);
         return await PublishAsync(topic, bytes, retain, qos, cancellationToken);
     }
+
+
+    /// <summary>
+    /// 删除保留消息
+    /// </summary>
+    /// <param name="topic"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentNullException"></exception>
+    public async Task<bool> RemoveRetainAsync(string topic, CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(topic)) {
+            throw new ArgumentNullException(nameof(topic));
+        }
+        var msg = new MqttApplicationMessageBuilder()
+                        .WithTopic(topic)
+                        .WithRetainFlag(true)
+                        .WithQualityOfServiceLevel(Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                        .Build();
+        await CheckConnected(cancellationToken);
+        var result = await this.client.PublishAsync(msg, cancellationToken);
+        if (result.ReasonCode != MqttClientPublishReasonCode.Success) {
+            logger.LogWarning("删除保留消息 {topic} 错误,{code}:{reason}", topic, result.ReasonCode, result.ReasonString);
+        }
+        return result.IsSuccess;
+    }
 }
