@@ -99,7 +99,7 @@ public class MqttConnectionOptionsTests {
         Assert.NotNull(clientOptions);
         Assert.Equal("test-client", clientOptions.ClientId);
         Assert.False(clientOptions.CleanSession);
-        
+
         var tcpOptions = clientOptions.ChannelOptions as MqttClientTcpOptions;
         Assert.NotNull(tcpOptions);
         // Note: MQTTnet 5.0+ uses different property names
@@ -123,7 +123,7 @@ public class MqttConnectionOptionsTests {
         Assert.NotNull(clientOptions);
         Assert.Equal("test-client", clientOptions.ClientId);
         Assert.True(clientOptions.CleanSession);
-        
+
         var wsOptions = clientOptions.ChannelOptions as MqttClientWebSocketOptions;
         Assert.NotNull(wsOptions);
         var uri = new Uri(wsOptions.Uri);
@@ -145,10 +145,11 @@ public class MqttConnectionOptionsTests {
 
         // Assert
         Assert.NotNull(clientOptions);
-        
+
         var tcpOptions = clientOptions.ChannelOptions as MqttClientTcpOptions;
         Assert.NotNull(tcpOptions);
         var endpointString = tcpOptions.RemoteEndpoint.ToString();
+        Assert.NotNull(endpointString);
         var hostPart = endpointString.Split(':')[0];
         // Handle both "localhost" and "Unspecified/localhost" formats
         Assert.True(hostPart == "localhost" || hostPart.EndsWith("/localhost"));
@@ -272,10 +273,10 @@ public class MqttConnectionOptionsTests {
 
         // Act
         var clientOptions = options.CreateOptionsBuilder().Build();
-        
+
         // Assert
         Assert.NotNull(clientOptions);
-        
+
         if (uriString.StartsWith("ws")) {
             var wsOptions = clientOptions.ChannelOptions as MqttClientWebSocketOptions;
             Assert.NotNull(wsOptions);
@@ -287,6 +288,7 @@ public class MqttConnectionOptionsTests {
             var tcpOptions = clientOptions.ChannelOptions as MqttClientTcpOptions;
             Assert.NotNull(tcpOptions);
             var endpointString = tcpOptions.RemoteEndpoint.ToString();
+            Assert.NotNull(endpointString);
             var hostPart = endpointString.Split(':')[0];
             // Handle both "localhost" and "Unspecified/localhost" formats
             if (expectedHost == "localhost") {
@@ -314,14 +316,15 @@ public class MqttConnectionOptionsTests {
         Assert.NotNull(clientOptions);
         Assert.Equal("user", clientOptions.Credentials.GetUserName(clientOptions));
         Assert.Equal("pass", System.Text.Encoding.UTF8.GetString(clientOptions.Credentials.GetPassword(clientOptions)));
-        
+
         var tcpOptions = clientOptions.ChannelOptions as MqttClientTcpOptions;
         Assert.NotNull(tcpOptions);
         var endpointString = tcpOptions.RemoteEndpoint.ToString();
+        Assert.NotNull(endpointString);
         var hostPart = endpointString.Split(':')[0];
         // Handle both formats
         Assert.True(hostPart == "mqtt.example.com" || hostPart.EndsWith("/mqtt.example.com"));
-        Assert.Equal(1884, int.Parse(endpointString.Split(':')[1]));    
+        Assert.Equal(1884, int.Parse(endpointString.Split(':')[1]));
         Assert.Equal(120, clientOptions.KeepAlivePeriod.TotalSeconds);
         Assert.True(clientOptions.CleanSession);
     }
