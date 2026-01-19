@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -7,20 +6,21 @@
     <IsPackable>true</IsPackable>
     <RootNamespace>MQTTnet.Agent</RootNamespace>
   </PropertyGroup>
-
   <PropertyGroup>
-    <Version>1.0.7</Version>
+    <Version>1.0.8</Version>
     <Authors>zwq00000</Authors>
     <Description>MQTT pub/sub Agent libs</Description>
     <PackageProjectUrl>https://github.com/zwq00000/MQTTNet.Agent</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zwq00000/MQTTNet.Agent.git</RepositoryUrl>
     <PackageTags>MQTT;Agent</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
-
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="MQTTnet" Version="5.0.*" />
     <PackageReference Include="System.Reactive" Version="6.0.*" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 </Project>
